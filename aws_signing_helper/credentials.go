@@ -108,14 +108,14 @@ func GenerateCredentials(opts *CredentialsOpts) (CredentialProcessOutput, error)
 	if opts.Endpoint != "" {
 		config.WithEndpoint(opts.Endpoint)
 	}
-	rolesAnywhereClient := NewClient(mySession, config)
+	rolesAnywhereClient := rolesanywhere.New(mySession, config)
 	rolesAnywhereClient.Handlers.Build.RemoveByName("core.SDKVersionUserAgentHandler")
 	rolesAnywhereClient.Handlers.Build.PushBackNamed(request.NamedHandler{Name: "v4x509.CredHelperUserAgentHandler", Fn: request.MakeAddToUserAgentHandler("CredHelper", opts.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)})
 	rolesAnywhereClient.Handlers.Sign.Clear()
 	rolesAnywhereClient.Handlers.Sign.PushBackNamed(request.NamedHandler{Name: "v4x509.SignRequestHandler", Fn: CreateSignFunction(privateKey, *certificate, certificateChain)})
 
 	durationSeconds := int64(3600)
-	createSessionRequest := CreateSessionInput{
+	createSessionRequest := rolesanywhere.CreateSessionInput{
 		Cert:               &certificateData.CertificateData,
 		ProfileArn:         &opts.ProfileArnStr,
 		TrustAnchorArn:     &opts.TrustAnchorArnStr,
