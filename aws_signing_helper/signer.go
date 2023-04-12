@@ -1,4 +1,4 @@
-package credentialsHelper
+package aws_signing_helper
 
 import (
 	"bytes"
