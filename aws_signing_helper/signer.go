@@ -1,4 +1,4 @@
-package aws_signing_helper
+package credentialsHelper
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -434,13 +433,8 @@ func encodeDer(der []byte) (string, error) {
 	return buf.String(), nil
 }
 
-func parseDERFromPEM(pemDataId string, blockType string) (*pem.Block, error) {
-	bytes, err := os.ReadFile(pemDataId)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
+func parseDERFromPEM(pemData string, blockType string) (*pem.Block, error) {
+	bytes := []byte(pemData)
 	var block *pem.Block
 	for len(bytes) > 0 {
 		block, bytes = pem.Decode(bytes)
@@ -454,14 +448,9 @@ func parseDERFromPEM(pemDataId string, blockType string) (*pem.Block, error) {
 	return nil, errors.New("requested block type could not be found")
 }
 
-// Reads certificate bundle data from a file, whose path is provided
-func ReadCertificateBundleData(certificateBundleId string) ([]*x509.Certificate, error) {
-	bytes, err := os.ReadFile(certificateBundleId)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
+// Reads certificate bundle data
+func ReadCertificateBundleData(certificateBundle string) ([]*x509.Certificate, error) {
+	bytes := []byte(certificateBundle)
 	var derBytes []byte
 	var block *pem.Block
 	for len(bytes) > 0 {
@@ -479,51 +468,51 @@ func ReadCertificateBundleData(certificateBundleId string) ([]*x509.Certificate,
 	return x509.ParseCertificates(derBytes)
 }
 
-func readECPrivateKey(privateKeyId string) (ecdsa.PrivateKey, error) {
-	block, err := parseDERFromPEM(privateKeyId, "EC PRIVATE KEY")
+func readECPrivateKey(privateKey string) (ecdsa.PrivateKey, error) {
+	block, err := parseDERFromPEM(privateKey, "EC PRIVATE KEY")
 	if err != nil {
 		return ecdsa.PrivateKey{}, errors.New("could not parse PEM data")
 	}
 
-	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	privKey, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
 		return ecdsa.PrivateKey{}, errors.New("could not parse private key")
 	}
 
-	return *privateKey, nil
+	return *privKey, nil
 }
 
-func readRSAPrivateKey(privateKeyId string) (rsa.PrivateKey, error) {
-	block, err := parseDERFromPEM(privateKeyId, "RSA PRIVATE KEY")
+func readRSAPrivateKey(privateKey string) (rsa.PrivateKey, error) {
+	block, err := parseDERFromPEM(privateKey, "RSA PRIVATE KEY")
 	if err != nil {
 		return rsa.PrivateKey{}, errors.New("could not parse PEM data")
 	}
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	privKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return rsa.PrivateKey{}, errors.New("could not parse private key")
 	}
 
-	return *privateKey, nil
+	return *privKey, nil
 }
 
-func readPKCS8PrivateKey(privateKeyId string) (crypto.PrivateKey, error) {
-	block, err := parseDERFromPEM(privateKeyId, "PRIVATE KEY")
+func readPKCS8PrivateKey(privateKey string) (crypto.PrivateKey, error) {
+	block, err := parseDERFromPEM(privateKey, "PRIVATE KEY")
 	if err != nil {
 		return nil, errors.New("could not parse PEM data")
 	}
 
-	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, errors.New("could not parse private key")
 	}
 
-	rsaPrivateKey, ok := privateKey.(*rsa.PrivateKey)
+	rsaPrivateKey, ok := privKey.(*rsa.PrivateKey)
 	if ok {
 		return *rsaPrivateKey, nil
 	}
 
-	ecPrivateKey, ok := privateKey.(*ecdsa.PrivateKey)
+	ecPrivateKey, ok := privKey.(*ecdsa.PrivateKey)
 	if ok {
 		return *ecPrivateKey, nil
 	}
@@ -531,27 +520,26 @@ func readPKCS8PrivateKey(privateKeyId string) (crypto.PrivateKey, error) {
 	return nil, errors.New("could not parse PKCS8 private key")
 }
 
-// Load the private key referenced by `privateKeyId`.
-func ReadPrivateKeyData(privateKeyId string) (crypto.PrivateKey, error) {
-	if key, err := readPKCS8PrivateKey(privateKeyId); err == nil {
+// Load the private key
+func ReadPrivateKeyData(privateKey string) (crypto.PrivateKey, error) {
+	if key, err := readPKCS8PrivateKey(privateKey); err == nil {
 		return key, nil
 	}
 
-	if key, err := readECPrivateKey(privateKeyId); err == nil {
+	if key, err := readECPrivateKey(privateKey); err == nil {
 		return key, nil
 	}
 
-	if key, err := readRSAPrivateKey(privateKeyId); err == nil {
+	if key, err := readRSAPrivateKey(privateKey); err == nil {
 		return key, nil
 	}
 
 	return nil, errors.New("unable to parse private key")
 }
 
-// Load the certificate referenced by `certificateId` and extract
-// details required by the SDK to construct the StringToSign.
-func ReadCertificateData(certificateId string) (CertificateData, error) {
-	block, err := parseDERFromPEM(certificateId, "CERTIFICATE")
+// Load the certificate and extract details required by the SDK to construct the StringToSign.
+func ReadCertificateData(certificate string) (CertificateData, error) {
+	block, err := parseDERFromPEM(certificate, "CERTIFICATE")
 	if err != nil {
 		return CertificateData{}, errors.New("could not parse PEM data")
 	}
