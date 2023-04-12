@@ -1,4 +1,4 @@
-package rolesanywhere
+package aws_signing_helper
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
